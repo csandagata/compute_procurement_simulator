@@ -7,6 +7,7 @@ import {
   tornadoBattery,
   demandFan,
   latencyCostFrontier,
+  scalingCaseFan,
 } from "./model.js";
 import {
   renderFleetByWorkload,
@@ -21,8 +22,10 @@ import {
   fmt,
 } from "./charts.js";
 import { KV_SCHEMES, KV_SCHEME_LABELS } from "./kv.js";
+import { WORKLOAD_CLASSES, DOMAINS, workloadsByDomain, SCALING_CASES } from "./workload_classes.js";
+import { makePortfolioItem } from "./portfolio.js";
 
-// Spec for every input. type=number|select|checkbox|multicheckbox, key matches model input field.
+// Spec for every scalar input. The portfolio is rendered separately.
 const CONTROLS = [
   { group: "Planning horizon", key: "horizonYears", label: "Years", type: "number", min: 1, max: 10, step: 1 },
   { group: "Planning horizon", key: "discountRate", label: "Discount rate", type: "number", min: 0, max: 0.25, step: 0.01 },
@@ -30,15 +33,15 @@ const CONTROLS = [
 
   { group: "Hardware", key: "gpuKey", label: "Headline GPU SKU (legacy)", type: "select", options: Object.keys(GPUS) },
   { group: "Hardware", key: "allowedGpus", label: "Allowed GPU SKUs", type: "multicheckbox", options: Object.keys(GPUS) },
-  { group: "Hardware", key: "quantization", label: "Quantization", type: "select", options: ["fp16", "fp8", "int4"] },
+  { group: "Hardware", key: "quantization", label: "Quantization (LLM)", type: "select", options: ["fp16", "fp8", "int4"] },
   { group: "Hardware", key: "networkTier", label: "Network fabric tier", type: "select", options: ["scale_up_only", "small_pod", "large_pod", "full_fabric"] },
   { group: "Hardware", key: "pue", label: "Datacenter PUE", type: "number", min: 1.05, max: 2.0, step: 0.01 },
   { group: "Hardware", key: "electricityPrice", label: "Electricity ($/kWh)", type: "number", min: 0.02, max: 0.30, step: 0.005 },
 
-  { group: "Model", key: "paramsB", label: "Model size (B params)", type: "number", min: 1, max: 5000, step: 1 },
-  { group: "Model", key: "activeFrac", label: "Active param fraction (MoE)", type: "number", min: 0.05, max: 1.0, step: 0.05 },
-  { group: "Model", key: "contextLen", label: "Avg input length (tokens)", type: "number", min: 1000, max: 200_000, step: 1000 },
-  { group: "Model", key: "outputLen", label: "Avg output length (tokens)", type: "number", min: 50, max: 10_000, step: 50 },
+  { group: "Model (LLM)", key: "paramsB", label: "LLM size (B params)", type: "number", min: 1, max: 5000, step: 1 },
+  { group: "Model (LLM)", key: "activeFrac", label: "Active param fraction (MoE)", type: "number", min: 0.05, max: 1.0, step: 0.05 },
+  { group: "Model (LLM)", key: "contextLen", label: "Avg input length (tokens)", type: "number", min: 1000, max: 200_000, step: 1000 },
+  { group: "Model (LLM)", key: "outputLen", label: "Avg output length (tokens)", type: "number", min: 50, max: 10_000, step: 50 },
 
   { group: "Architecture & runtime", key: "kvScheme", label: "KV-cache scheme", type: "select", options: KV_SCHEMES },
   { group: "Architecture & runtime", key: "mlaCompressionDim", label: "MLA compression dim", type: "number", min: 64, max: 2048, step: 32 },
@@ -49,18 +52,12 @@ const CONTROLS = [
   { group: "Architecture & runtime", key: "specDecGammaMax", label: "Spec-dec γ (draft tokens)", type: "number", min: 1, max: 10, step: 1 },
   { group: "Architecture & runtime", key: "enableQueueing", label: "Apply queueing-derived util cap", type: "checkbox" },
 
-  { group: "Demand", key: "interactiveTokensPerDay", label: "Interactive tokens/day", type: "number", min: 0, max: 1e12, step: 1e8 },
-  { group: "Demand", key: "batchTokensPerDay", label: "Batch tokens/day", type: "number", min: 0, max: 1e12, step: 1e8 },
-  { group: "Demand", key: "rlTokensPerDay", label: "RL rollout tokens/day", type: "number", min: 0, max: 1e12, step: 1e8 },
-  { group: "Demand", key: "pretrainFlopsPerYear", label: "Pretraining FLOPs/year", type: "number", min: 0, max: 1e27, step: 1e22 },
-  { group: "Demand", key: "finetuneFlopsPerYear", label: "Finetune FLOPs/year", type: "number", min: 0, max: 1e26, step: 1e21 },
-  { group: "Demand", key: "demandGrowth", label: "Demand YoY growth", type: "number", min: 0, max: 3.0, step: 0.05 },
-  { group: "Demand", key: "modelGrowth", label: "Model size YoY growth", type: "number", min: 0, max: 2.0, step: 0.05 },
-  { group: "Demand", key: "algEfficiency", label: "Alg efficiency YoY gain", type: "number", min: 0, max: 2.0, step: 0.05 },
-
   { group: "Operations", key: "mfu", label: "Training MFU", type: "number", min: 0.05, max: 0.7, step: 0.01 },
   { group: "Operations", key: "utilization", label: "Inference fleet utilization (cap)", type: "number", min: 0.2, max: 0.95, step: 0.01 },
   { group: "Operations", key: "headroomFactor", label: "Capacity headroom factor", type: "number", min: 1.0, max: 2.5, step: 0.05 },
+  { group: "Operations", key: "demandGrowth", label: "Default YoY demand growth", type: "number", min: 0, max: 3.0, step: 0.05 },
+  { group: "Operations", key: "modelGrowth", label: "LLM model size YoY growth", type: "number", min: 0, max: 2.0, step: 0.05 },
+  { group: "Operations", key: "algEfficiency", label: "Alg efficiency YoY gain", type: "number", min: 0, max: 2.0, step: 0.05 },
 
   { group: "Strategy", key: "rentalShare", label: "Rental share", type: "number", min: 0, max: 1, step: 0.05 },
   { group: "Strategy", key: "edgeFacilityShare", label: "Edge facility GPU share", type: "number", min: 0, max: 1, step: 0.05 },
@@ -73,15 +70,21 @@ const CONTROLS = [
 ];
 
 let currentInputs = {};
+// currentInputs.portfolio is an array of portfolio items; mirrored in DOM by the portfolio editor.
 
 function buildControlsDom() {
   const container = document.getElementById("controls");
+  container.innerHTML = "";
+
+  // Portfolio editor first (expanded by default).
+  container.appendChild(buildPortfolioEditor());
+
+  // Then scalar control groups.
   const groups = {};
   for (const c of CONTROLS) {
     if (!groups[c.group]) groups[c.group] = [];
     groups[c.group].push(c);
   }
-  container.innerHTML = "";
   for (const [groupName, controls] of Object.entries(groups)) {
     const section = document.createElement("section");
     section.className = "control-group";
@@ -91,6 +94,134 @@ function buildControlsDom() {
     }
     container.appendChild(section);
   }
+}
+
+// Portfolio editor: collapsible per-domain panels, one row per workload class.
+function buildPortfolioEditor() {
+  const section = document.createElement("section");
+  section.className = "control-group portfolio-editor";
+  section.innerHTML = `
+    <h3>Workload portfolio</h3>
+    <div class="hint">
+      Compose a mix of workloads. Each row's <em>scaling case</em> selects how
+      compute demand grows over time when the underlying scaling law is unfitted —
+      <code>low</code> is data-bound / saturating, <code>high</code> is compute-bound.
+    </div>`;
+  const byDomain = workloadsByDomain();
+  for (const [domain, items] of Object.entries(byDomain)) {
+    const dom = DOMAINS[domain];
+    const panel = document.createElement("details");
+    panel.open = true;
+    panel.className = "domain-panel";
+    panel.style.borderLeft = `3px solid ${dom.color}`;
+    const summary = document.createElement("summary");
+    summary.innerHTML = `<span class="dom-dot" style="background:${dom.color}"></span> ${dom.label}`;
+    panel.appendChild(summary);
+    for (const cls of items) {
+      panel.appendChild(buildPortfolioRow(cls));
+    }
+    section.appendChild(panel);
+  }
+  return section;
+}
+
+function buildPortfolioRow(cls) {
+  const row = document.createElement("div");
+  row.className = "portfolio-row";
+  row.dataset.classId = cls.id;
+
+  const labelWrap = document.createElement("label");
+  labelWrap.className = "pf-toplabel";
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.className = "pf-enable";
+  cb.dataset.classId = cls.id;
+  cb.addEventListener("change", onPortfolioChange);
+  labelWrap.appendChild(cb);
+  const labelSpan = document.createElement("span");
+  labelSpan.textContent = cls.label;
+  labelSpan.title = cls.notes || "";
+  labelWrap.appendChild(labelSpan);
+  row.appendChild(labelWrap);
+
+  const inputs = document.createElement("div");
+  inputs.className = "pf-inputs";
+
+  const demandInput = document.createElement("input");
+  demandInput.type = "number";
+  demandInput.className = "pf-demand";
+  demandInput.dataset.classId = cls.id;
+  demandInput.min = 0;
+  demandInput.step = "any";
+  demandInput.placeholder = cls.default_demand?.label || "units/year";
+  demandInput.title = cls.default_demand?.label || "units/year";
+  demandInput.addEventListener("input", debounce(onPortfolioChange, 250));
+  inputs.appendChild(demandInput);
+
+  const scalingSelect = document.createElement("select");
+  scalingSelect.className = "pf-scaling";
+  scalingSelect.dataset.classId = cls.id;
+  // Only include "fitted" for LLM domain; others have unfitted scaling laws.
+  const cases = cls.domain === "llm" ? SCALING_CASES : SCALING_CASES.filter((s) => s !== "fitted");
+  for (const s of cases) {
+    const o = document.createElement("option");
+    o.value = s; o.textContent = s;
+    scalingSelect.appendChild(o);
+  }
+  scalingSelect.addEventListener("change", onPortfolioChange);
+  inputs.appendChild(scalingSelect);
+
+  row.appendChild(inputs);
+
+  const meta = document.createElement("div");
+  meta.className = "pf-meta";
+  const bound = cls.bound_default || cls.compute_pattern;
+  const fp64 = cls.fp64_required ? " · FP64" : "";
+  const ecosystem = cls.ecosystem !== "cuda_or_rocm" ? ` · ${cls.ecosystem}` : "";
+  meta.textContent = `${cls.compute_pattern} · ${bound}${fp64}${ecosystem}`;
+  row.appendChild(meta);
+
+  return row;
+}
+
+function applyPortfolioToDom(portfolio) {
+  // First clear all rows
+  for (const cls of Object.values(WORKLOAD_CLASSES)) {
+    const en = document.querySelector(`.pf-enable[data-class-id="${cls.id}"]`);
+    const dm = document.querySelector(`.pf-demand[data-class-id="${cls.id}"]`);
+    const sc = document.querySelector(`.pf-scaling[data-class-id="${cls.id}"]`);
+    if (!en) continue;
+    en.checked = false;
+    dm.value = "";
+    sc.value = "median";
+  }
+  if (!Array.isArray(portfolio)) return;
+  for (const item of portfolio) {
+    const en = document.querySelector(`.pf-enable[data-class-id="${item.classId}"]`);
+    const dm = document.querySelector(`.pf-demand[data-class-id="${item.classId}"]`);
+    const sc = document.querySelector(`.pf-scaling[data-class-id="${item.classId}"]`);
+    if (!en) continue;
+    en.checked = item.enabled !== false;
+    dm.value = item.unitsPerYear;
+    sc.value = item.scalingCase || "median";
+  }
+}
+
+function readPortfolioFromDom() {
+  const items = [];
+  for (const cls of Object.values(WORKLOAD_CLASSES)) {
+    const en = document.querySelector(`.pf-enable[data-class-id="${cls.id}"]`);
+    const dm = document.querySelector(`.pf-demand[data-class-id="${cls.id}"]`);
+    const sc = document.querySelector(`.pf-scaling[data-class-id="${cls.id}"]`);
+    if (!en || !en.checked) continue;
+    const val = parseFloat(dm.value);
+    if (!isFinite(val) || val <= 0) continue;
+    items.push(makePortfolioItem(cls.id, {
+      unitsPerYear: val,
+      scalingCase: sc.value,
+    }));
+  }
+  return items;
 }
 
 function buildControl(c) {
@@ -174,8 +305,7 @@ function applyInputsToDom(inputs) {
         const el = document.getElementById(`ctl-${c.key}-${opt}`);
         if (!el) continue;
         el.checked = inputs[c.key] === null || inputs[c.key] === undefined
-          ? true
-          : allowed.has(opt);
+          ? true : allowed.has(opt);
       }
       continue;
     }
@@ -184,6 +314,7 @@ function applyInputsToDom(inputs) {
     if (c.type === "checkbox") el.checked = !!inputs[c.key];
     else el.value = inputs[c.key] ?? "";
   }
+  applyPortfolioToDom(inputs.portfolio);
 }
 
 function readInputsFromDom() {
@@ -204,6 +335,7 @@ function readInputsFromDom() {
     else if (c.type === "checkbox") inputs[c.key] = el.checked;
     else inputs[c.key] = parseFloat(el.value);
   }
+  inputs.portfolio = readPortfolioFromDom();
   return inputs;
 }
 
@@ -244,6 +376,11 @@ function onAnyChange() {
   recompute();
 }
 
+function onPortfolioChange() {
+  // Same flow but lets us add portfolio-specific logic later (e.g. validation).
+  onAnyChange();
+}
+
 function setKpi(id, v) {
   document.getElementById(id).textContent = v;
 }
@@ -253,7 +390,6 @@ function recompute() {
   const plan = buildPlan(currentInputs);
   const elapsed = performance.now() - t0;
 
-  // KPI tiles
   setKpi("kpi-peak-gpus", fmt(plan.peakGpus));
   setKpi("kpi-peak-mw", plan.peakMw.toFixed(1) + " MW");
   setKpi("kpi-peak-facilities", plan.peakFacilities.toString());
@@ -262,7 +398,6 @@ function recompute() {
   setKpi("kpi-internal-price", "$" + lastYear.internalDollarsPerMtok.toFixed(2) + "/Mtok");
   setKpi("kpi-fabric", lastYear.minScaleUpGpus + " GPUs");
 
-  // Charts
   renderFleetByWorkload("chart-fleet", plan);
   renderFacilities("chart-facilities", plan);
   renderPower("chart-power", plan);
@@ -297,12 +432,18 @@ function updateNarrative(plan) {
   const scaleUpDomain = plan.gpu?.scaleup_domain || 8;
   const fabricStress = fabricNeeded > scaleUpDomain;
 
-  // SKU mix string
   const skuMix = Object.entries(last.gpusBySku || {})
     .sort((a, b) => b[1] - a[1])
     .map(([sku, count]) => `${sku} (${fmt(Math.ceil(count))})`)
     .join(", ");
   const skuCount = Object.keys(last.gpusBySku || {}).length;
+
+  // Domain mix: workload domains contributing GPU-years
+  const domainMix = Object.entries(last.gpuYearsByDomain || {})
+    .filter(([_, gy]) => gy > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([d, gy]) => `${DOMAINS[d]?.label || d} (${fmt(Math.round(gy))} GPU-yr)`)
+    .join(", ");
 
   const intP = last.allocations?.interactive_inference;
   const intDecode = intP?.decode;
@@ -312,18 +453,23 @@ function updateNarrative(plan) {
   const lines = [
     `Over ${plan.yearly.length} years, the fleet grows ${fleetGrowth.toFixed(1)}× to ${fmt(last.totalGpus)} GPUs across ${last.numFacilities} facility(s) drawing ${last.totalKw / 1000 | 0} MW peak.`,
     `Total discounted TCO: $${tcoMillions}M. Fleet mix: ${skuMix || "—"} (${skuCount} distinct SKU${skuCount === 1 ? "" : "s"}).`,
-    intDecode && intPrefill
-      ? `Interactive serving: prefill on ${intPrefill.sku} (TP=${intPrefill.tp}, batch=${intPrefill.batch}, ${intPrefill.latencyMs?.toFixed(0)}ms total), decode on ${intDecode.sku} (TP=${intDecode.tp}, batch=${intDecode.batch}, ${intDecode.latencyMs?.toFixed(0)}ms/tok, util cap ${(intDecode.utilization * 100).toFixed(0)}%, p99 wait ~${intDecode.p99WaitMs?.toFixed(0)}ms).`
-      : `Interactive serving plan unavailable.`,
+    domainMix
+      ? `Workload domains: ${domainMix}.`
+      : `(No workload demand specified.)`,
+    intDecode?.sku && intPrefill?.sku
+      ? `Interactive serving: prefill on ${intPrefill.sku} (TP=${intPrefill.tp}, batch=${intPrefill.batch}, ${intPrefill.latencyMs?.toFixed(0)}ms total), decode on ${intDecode.sku} (TP=${intDecode.tp}, batch=${intDecode.batch}, ${intDecode.latencyMs?.toFixed(0)}ms/tok).`
+      : `Interactive LLM serving disabled or infeasible.`,
     specMul && specMul > 1.05
       ? `Speculative decoding contributing ${specMul.toFixed(2)}× decode throughput speedup.`
       : `Speculative decoding off or contributing <5% (acceptance prob too low or γ=0).`,
-    buildBeatsRent
+    last.tokensServed > 0 && buildBeatsRent
       ? `By Y${last.year}, internal $${last.internalDollarsPerMtok.toFixed(2)}/Mtok beats the external $${last.externalDollarsPerMtok.toFixed(2)}/Mtok benchmark.`
-      : `By Y${last.year}, external rental ($${last.externalDollarsPerMtok.toFixed(2)}/Mtok) is cheaper than internal ($${last.internalDollarsPerMtok.toFixed(2)}/Mtok). Reconsider build vs rent.`,
+      : last.tokensServed > 0
+      ? `By Y${last.year}, external rental ($${last.externalDollarsPerMtok.toFixed(2)}/Mtok) is cheaper than internal ($${last.internalDollarsPerMtok.toFixed(2)}/Mtok). Reconsider build vs rent.`
+      : `Build-vs-rent comparison N/A (no LLM token-serving workloads in this portfolio).`,
     fabricStress
-      ? `⚠ The frontier model (${last.yearParamsB.toFixed(0)}B params) requires ${fabricNeeded} coherent-fabric GPUs, exceeding the ${plan.gpu?.label || plan.headlineSku} scale-up domain of ${scaleUpDomain}. Plan for next-gen hardware or aggressive quantization.`
-      : `The frontier model (${last.yearParamsB.toFixed(0)}B params) fits in a ${fabricNeeded}-GPU scale-up domain.`,
+      ? `⚠ The frontier model (${last.yearParamsB?.toFixed?.(0) ?? "—"}B params) requires ${fabricNeeded} coherent-fabric GPUs, exceeding the ${plan.gpu?.label || plan.headlineSku} scale-up domain of ${scaleUpDomain}.`
+      : `LLM frontier model fits in a ${fabricNeeded}-GPU scale-up domain on ${plan.gpu?.label || plan.headlineSku}.`,
     plan.anyShortfall
       ? `⚠ Site capacity insufficient in ≥1 year of the plan; consider neocloud overflow or earlier site builds (lead times 2–3 years).`
       : `Site capacity adequate across all regions for the entire horizon.`,

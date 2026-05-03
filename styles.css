@@ -183,6 +183,90 @@ aside.sidebar {
   accent-color: var(--accent);
 }
 
+/* Portfolio editor */
+.portfolio-editor .hint {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border-radius: 4px;
+}
+.portfolio-editor .hint code {
+  background: rgba(79,142,247,0.15);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 10px;
+}
+.domain-panel {
+  margin-bottom: 8px;
+  padding: 6px 0 6px 8px;
+}
+.domain-panel summary {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dom-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+.portfolio-row {
+  margin: 4px 0;
+  padding: 6px 0 6px 16px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.portfolio-row .pf-toplabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+.portfolio-row .pf-toplabel input[type="checkbox"] {
+  width: 13px; height: 13px;
+  accent-color: var(--accent);
+  margin: 0;
+  flex-shrink: 0;
+}
+.pf-inputs {
+  display: grid;
+  grid-template-columns: 1fr 90px;
+  gap: 6px;
+  padding-left: 19px;
+}
+.pf-inputs input,
+.pf-inputs select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-size: 11px;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.pf-meta {
+  font-size: 10px;
+  color: var(--text-dim);
+  padding-left: 19px;
+  letter-spacing: 0.02em;
+}
+
+
 main.main {
   grid-area: main;
   overflow-y: auto;
