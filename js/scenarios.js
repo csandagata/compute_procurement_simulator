@@ -1,24 +1,42 @@
 // Preset scenarios. Each is a complete input set for buildPlan().
 // Loading a preset overwrites all controls.
 
+const COMMON_DEFAULTS = {
+  outputLen: 200,
+  kvScheme: "GQA_8",
+  kvSchemeOverride: false,
+  mlaCompressionDim: 576,
+  enableSpecDec: true,
+  specDecAcceptanceProb: 0.7,
+  specDecGammaMax: 4,
+  specDecDraftCost: 0.08,
+  enableQueueing: true,
+  allowedGpus: null,           // null = all SKUs allowed
+  maxTpPerWorkload: null,      // null = use scaleup_domain × 4
+  inputOutputRatio: null,      // null = use contextLen/outputLen
+};
+
 export const SCENARIOS = {
   enterprise_balanced: {
     label: "Enterprise: balanced AI org",
     description:
       "Mid-size enterprise running an internal copilot for 50k employees, " +
-      "modest training program, growing 60% YoY.",
+      "modest training program, growing 60% YoY. CUDA-only fleet (no AMD).",
     inputs: {
+      ...COMMON_DEFAULTS,
       horizonYears: 5,
       gpuKey: "H100_SXM",
       quantization: "fp8",
       paramsB: 70,
       activeFrac: 1.0,
       contextLen: 8000,
-      kvBytesPerToken: 200_000,    // 200 KB per token typical for 70B at FP16 KV
+      outputLen: 250,
+      kvBytesPerToken: 200_000,
+      kvScheme: "GQA_8",
       interactiveTokensPerDay: 5e9,
       batchTokensPerDay: 20e9,
       rlTokensPerDay: 0,
-      pretrainFlopsPerYear: 1e23,  // ~one mid-size pretrain run
+      pretrainFlopsPerYear: 1e23,
       finetuneFlopsPerYear: 5e22,
       tpDegree: 8,
       mfu: 0.35,
@@ -28,8 +46,8 @@ export const SCENARIOS = {
       algEfficiency: 0.5,
       refreshYears: 4,
       discountRate: 0.10,
-      externalInitialPrice: 5.0,    // $/Mtok at the capability tier today
-      externalDeclineMult: 3.0,     // 3x cheaper per year baseline
+      externalInitialPrice: 5.0,
+      externalDeclineMult: 3.0,
       edgeFacilityShare: 0.2,
       regionalFacilityShare: 0.4,
       centralFacilityShare: 0.4,
@@ -39,21 +57,26 @@ export const SCENARIOS = {
       pue: 1.25,
       electricityPrice: 0.07,
       networkTier: "small_pod",
+      allowedGpus: ["H100_SXM", "H200_SXM", "B200"],
     },
   },
   frontier_lab: {
     label: "Frontier lab: training-heavy, fast scaling",
     description:
       "AI lab pushing the frontier, large pretrain compute, RL post-training, " +
-      "model size doubling each year.",
+      "model size doubling each year. Open to all hardware.",
     inputs: {
+      ...COMMON_DEFAULTS,
       horizonYears: 5,
       gpuKey: "GB200_NVL72",
       quantization: "fp8",
       paramsB: 500,
-      activeFrac: 0.1,             // MoE sparsity ~10x
+      activeFrac: 0.1,
       contextLen: 32000,
-      kvBytesPerToken: 60_000,     // MLA / GQA compressed
+      outputLen: 500,
+      kvBytesPerToken: 60_000,
+      kvScheme: "MLA",
+      mlaCompressionDim: 576,
       interactiveTokensPerDay: 50e9,
       batchTokensPerDay: 200e9,
       rlTokensPerDay: 100e9,
@@ -62,7 +85,7 @@ export const SCENARIOS = {
       tpDegree: 16,
       mfu: 0.42,
       utilization: 0.7,
-      demandGrowth: 1.5,           // 2.5x per year
+      demandGrowth: 1.5,
       modelGrowth: 0.7,
       algEfficiency: 0.8,
       refreshYears: 3,
@@ -76,23 +99,28 @@ export const SCENARIOS = {
       headroomFactor: 1.3,
       rentalShare: 0.05,
       pue: 1.20,
-      electricityPrice: 0.05,      // power-cost-optimized siting
+      electricityPrice: 0.05,
       networkTier: "full_fabric",
+      specDecAcceptanceProb: 0.8,
+      specDecGammaMax: 5,
     },
   },
   inference_only: {
     label: "Inference-only product company",
     description:
       "Company serves a global consumer product with strict <30ms/tok latency. " +
-      "No training; uses open-weight models.",
+      "No training; uses open-weight models. Heterogeneous fleet for batch vs interactive.",
     inputs: {
+      ...COMMON_DEFAULTS,
       horizonYears: 5,
       gpuKey: "H200_SXM",
       quantization: "fp8",
       paramsB: 70,
       activeFrac: 1.0,
       contextLen: 4000,
+      outputLen: 300,
       kvBytesPerToken: 200_000,
+      kvScheme: "GQA_8",
       interactiveTokensPerDay: 100e9,
       batchTokensPerDay: 20e9,
       rlTokensPerDay: 0,
@@ -108,7 +136,7 @@ export const SCENARIOS = {
       discountRate: 0.10,
       externalInitialPrice: 2.0,
       externalDeclineMult: 3.0,
-      edgeFacilityShare: 0.5,       // latency drives geography
+      edgeFacilityShare: 0.5,
       regionalFacilityShare: 0.3,
       centralFacilityShare: 0.2,
       facilityMaxMw: 20,
@@ -117,21 +145,25 @@ export const SCENARIOS = {
       pue: 1.3,
       electricityPrice: 0.10,
       networkTier: "small_pod",
+      allowedGpus: ["H100_SXM", "H200_SXM", "B200", "MI300X"],
     },
   },
   conservative: {
     label: "Conservative: cloud-first, hedged",
     description:
       "Risk-averse enterprise. Heavy cloud rental, only owns capacity for " +
-      "baseload, large headroom, slow refresh.",
+      "baseload, large headroom, slow refresh. NVIDIA-only.",
     inputs: {
+      ...COMMON_DEFAULTS,
       horizonYears: 5,
       gpuKey: "H100_SXM",
       quantization: "fp16",
       paramsB: 30,
       activeFrac: 1.0,
       contextLen: 8000,
+      outputLen: 200,
       kvBytesPerToken: 100_000,
+      kvScheme: "GQA_8",
       interactiveTokensPerDay: 1e9,
       batchTokensPerDay: 3e9,
       rlTokensPerDay: 0,
@@ -156,6 +188,8 @@ export const SCENARIOS = {
       pue: 1.4,
       electricityPrice: 0.10,
       networkTier: "scale_up_only",
+      allowedGpus: ["A100_80GB", "H100_SXM"],
+      enableSpecDec: false,
     },
   },
 };

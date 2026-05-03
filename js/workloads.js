@@ -21,6 +21,13 @@ export const LATENCY_TARGET_MS_PER_TOK = {
   finetune: Infinity,
 };
 
+// Time-to-first-token target for prefill phase (ms total prefill time at given input length).
+export const TTFT_TARGET_MS = {
+  interactive_inference: 600,
+  batch_inference: 30000,
+  rl: 5000,
+};
+
 // Whether the workload requires a coherent (scale-up) fabric or scale-out is fine.
 export const NEEDS_SCALE_UP_FABRIC = {
   interactive_inference: true,    // tensor parallel for low latency on big models
@@ -28,6 +35,25 @@ export const NEEDS_SCALE_UP_FABRIC = {
   training: true,                 // 3D parallelism wants high BW domain
   rl: true,
   finetune: true,
+};
+
+// Whether speculative decoding helps this workload. Long autoregressive decode
+// benefits; prefill-dominated or training does not.
+export const BENEFITS_FROM_SPEC_DEC = {
+  interactive_inference: true,
+  batch_inference: true,
+  rl: true,
+  training: false,
+  finetune: false,
+};
+
+// Latency-tier policy per workload — used to pick which regions/facilities serve it.
+export const LATENCY_TIER = {
+  interactive_inference: "edge",
+  batch_inference: "central",
+  rl: "regional",
+  training: "central",
+  finetune: "central",
 };
 
 // Minimum facility latency tier policy (ms RTT to user).

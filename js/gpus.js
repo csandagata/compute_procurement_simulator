@@ -14,6 +14,7 @@ export const GPUS = {
     power_w: 400,
     capex_usd: 12000,        // secondary-market typical
     intro_year: 2020,
+    scaleup_domain: 8,       // DGX A100 NVLink switch fabric
   },
   H100_SXM: {
     label: "NVIDIA H100 SXM 80GB",
@@ -26,6 +27,7 @@ export const GPUS = {
     power_w: 700,
     capex_usd: 28000,
     intro_year: 2023,
+    scaleup_domain: 8,       // HGX H100 8-GPU; some 256-GPU NVL clusters exist but rare
   },
   H200_SXM: {
     label: "NVIDIA H200 SXM 141GB",
@@ -38,6 +40,7 @@ export const GPUS = {
     power_w: 700,
     capex_usd: 32000,
     intro_year: 2024,
+    scaleup_domain: 8,
   },
   B200: {
     label: "NVIDIA B200 SXM",
@@ -50,6 +53,7 @@ export const GPUS = {
     power_w: 1000,
     capex_usd: 40000,
     intro_year: 2025,
+    scaleup_domain: 8,       // HGX B200 8-GPU baseline
   },
   GB200_NVL72: {
     label: "NVIDIA GB200 (NVL72 rack-scale)",
@@ -75,6 +79,7 @@ export const GPUS = {
     power_w: 750,
     capex_usd: 18000,
     intro_year: 2024,
+    scaleup_domain: 8,
   },
 };
 
