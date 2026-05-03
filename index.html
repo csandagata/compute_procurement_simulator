@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Compute Procurement Simulator</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="top-row">
+        <div>
+          <h1>Compute Procurement Simulator</h1>
+          <div class="subtitle">
+            An idealized planning dashboard for an enterprise's internal GPU buildout
+            <span class="compute-time" id="compute-time"></span>
+          </div>
+        </div>
+        <button class="recompute-btn" id="recompute-btn">Recompute</button>
+      </div>
+      <div class="scenario-row">
+        <label for="scenario-picker" style="color: var(--text-dim); font-size: 12px;">Scenario:</label>
+        <select id="scenario-picker"></select>
+        <span class="scenario-description" id="scenario-description"></span>
+      </div>
+      <div class="share-warn" id="share-warn"></div>
+    </header>
+
+    <aside class="sidebar">
+      <div id="controls"></div>
+    </aside>
+
+    <main class="main">
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="kpi-label">Peak fleet</div>
+          <div class="kpi-value" id="kpi-peak-gpus">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Peak power</div>
+          <div class="kpi-value" id="kpi-peak-mw">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Facilities</div>
+          <div class="kpi-value" id="kpi-peak-facilities">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Discounted TCO</div>
+          <div class="kpi-value" id="kpi-tco">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Internal $/Mtok (final yr)</div>
+          <div class="kpi-value" id="kpi-internal-price">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Coherent fabric needed</div>
+          <div class="kpi-value" id="kpi-fabric">—</div>
+        </div>
+      </div>
+
+      <div class="narrative" id="narrative"></div>
+
+      <div class="charts-grid">
+        <div class="chart-card" id="chart-fleet"></div>
+        <div class="chart-card" id="chart-facilities"></div>
+        <div class="chart-card" id="chart-power"></div>
+        <div class="chart-card" id="chart-scaleup"></div>
+        <div class="chart-card full" id="chart-tco"></div>
+        <div class="chart-card" id="chart-buybuild"></div>
+        <div class="chart-card" id="chart-latency"></div>
+        <div class="chart-card" id="chart-fan"></div>
+        <div class="chart-card" id="chart-tornado"></div>
+      </div>
+
+      <div class="refs">
+        <strong>Model basis &amp; references.</strong>
+        Throughput math is a simplified version of the inference-economics framework
+        from <a href="https://github.com/ege-erdil/inference-economics" target="_blank" rel="noopener">Erdil &amp; Epoch (2025)</a>
+        — per-token decode time = max(memory-bw, compute, network) plus collective latency, with batch size traded against activation/network cost.
+        Price-decline curves follow <a href="https://epoch.ai/data-insights/llm-inference-price-trends" target="_blank" rel="noopener">Epoch AI's LLM inference price trends</a> (median ~50× per year, post-2024 ~200×).
+        TCO categories follow the <a href="https://inferencex.semianalysis.com/inference" target="_blank" rel="noopener">SemiAnalysis InferenceMAX</a> decomposition (chips, networking BoM, datacenter, power).
+        See <a href="https://epoch.ai/blog/inference-economics-of-language-models" target="_blank" rel="noopener">Epoch's inference-economics blog post</a> for the latency-cost Pareto-frontier methodology this dashboard echoes.
+        All numbers are illustrative; tune the parameters to your own situation.
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
