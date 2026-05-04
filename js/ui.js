@@ -19,6 +19,11 @@ import {
   renderTornado,
   renderDemandFan,
   renderScaleUp,
+  renderDomainStack,
+  renderScalingCaseFan,
+  renderFp64Split,
+  renderBoundHeatmap,
+  renderSkuMix,
   fmt,
 } from "./charts.js";
 import { KV_SCHEMES, KV_SCHEME_LABELS } from "./kv.js";
@@ -398,18 +403,34 @@ function recompute() {
   setKpi("kpi-internal-price", "$" + lastYear.internalDollarsPerMtok.toFixed(2) + "/Mtok");
   setKpi("kpi-fabric", lastYear.minScaleUpGpus + " GPUs");
 
+  // Workload-portfolio frame
+  renderDomainStack("chart-domain", plan);
+  renderFp64Split("chart-fp64-split", plan);
+  renderBoundHeatmap("chart-bound-heatmap", plan);
+  renderSkuMix("chart-sku-mix", plan);
+
+  // Chip-mix & spend frame
   renderFleetByWorkload("chart-fleet", plan);
-  renderFacilities("chart-facilities", plan);
-  renderPower("chart-power", plan);
   renderTcoStack("chart-tco", plan);
   renderBuildVsBuy("chart-buybuild", plan);
-  renderScaleUp("chart-scaleup", plan);
 
+  // Latency & DC frame
+  renderFacilities("chart-facilities", plan);
+  renderPower("chart-power", plan);
+  renderScaleUp("chart-scaleup", plan);
+  const frontier = latencyCostFrontier(currentInputs, 0);
+  renderLatencyFrontier("chart-latency", frontier);
+
+  // Long-term & surge frame
   const fan = demandFan(currentInputs);
   renderDemandFan("chart-fan", fan);
 
-  const frontier = latencyCostFrontier(currentInputs, 0);
-  renderLatencyFrontier("chart-latency", frontier);
+  // Scaling-case fan (latent uncertainty across the portfolio).
+  // Slightly expensive (3 buildPlan calls); defer to next tick.
+  setTimeout(() => {
+    const sFan = scalingCaseFan(currentInputs);
+    renderScalingCaseFan("chart-scaling-fan", sFan);
+  }, 0);
 
   setTimeout(() => {
     const tor = tornadoBattery(currentInputs, plan.totalDiscountedTco);

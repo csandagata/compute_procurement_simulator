@@ -319,6 +319,33 @@ main.main {
   margin-bottom: 0;
 }
 
+section.frame {
+  margin-bottom: 28px;
+}
+.frame-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.frame-title::before {
+  content: "";
+  width: 3px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.frame-blurb {
+  margin: 0 0 12px 13px;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

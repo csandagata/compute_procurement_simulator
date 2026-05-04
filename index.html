@@ -62,17 +62,47 @@
 
       <div class="narrative" id="narrative"></div>
 
-      <div class="charts-grid">
-        <div class="chart-card" id="chart-fleet"></div>
-        <div class="chart-card" id="chart-facilities"></div>
-        <div class="chart-card" id="chart-power"></div>
-        <div class="chart-card" id="chart-scaleup"></div>
-        <div class="chart-card full" id="chart-tco"></div>
-        <div class="chart-card" id="chart-buybuild"></div>
-        <div class="chart-card" id="chart-latency"></div>
-        <div class="chart-card" id="chart-fan"></div>
-        <div class="chart-card" id="chart-tornado"></div>
-      </div>
+      <section class="frame">
+        <h2 class="frame-title">Workload portfolio</h2>
+        <p class="frame-blurb">What you're running, broken down by domain and bottleneck. The latent-scaling-case fan shows the band of fleet outcomes if non-LLM scaling laws turn out compute-bound vs data-bound.</p>
+        <div class="charts-grid">
+          <div class="chart-card" id="chart-domain"></div>
+          <div class="chart-card" id="chart-scaling-fan"></div>
+          <div class="chart-card full" id="chart-bound-heatmap"></div>
+          <div class="chart-card" id="chart-fp64-split"></div>
+          <div class="chart-card" id="chart-sku-mix"></div>
+        </div>
+      </section>
+
+      <section class="frame">
+        <h2 class="frame-title">Chip mix &amp; spend</h2>
+        <p class="frame-blurb">How many GPUs of which kind, what they cost over the horizon, and whether building beats buying.</p>
+        <div class="charts-grid">
+          <div class="chart-card" id="chart-fleet"></div>
+          <div class="chart-card full" id="chart-tco"></div>
+          <div class="chart-card" id="chart-buybuild"></div>
+        </div>
+      </section>
+
+      <section class="frame">
+        <h2 class="frame-title">Latency &amp; data center needs</h2>
+        <p class="frame-blurb">Power footprint, facility count by latency tier, and the latency-cost Pareto frontier per Erdil/Epoch.</p>
+        <div class="charts-grid">
+          <div class="chart-card" id="chart-facilities"></div>
+          <div class="chart-card" id="chart-power"></div>
+          <div class="chart-card" id="chart-scaleup"></div>
+          <div class="chart-card" id="chart-latency"></div>
+        </div>
+      </section>
+
+      <section class="frame">
+        <h2 class="frame-title">Long-term &amp; surge implications</h2>
+        <p class="frame-blurb">Demand-uncertainty fan vs provisioned capacity, and TCO sensitivity to each input lever.</p>
+        <div class="charts-grid">
+          <div class="chart-card" id="chart-fan"></div>
+          <div class="chart-card" id="chart-tornado"></div>
+        </div>
+      </section>
 
       <div class="refs">
         <strong>Model basis &amp; references.</strong>
