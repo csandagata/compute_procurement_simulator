@@ -22,9 +22,10 @@ function bytesPerParam(quantization) {
 }
 
 function effectiveFlops(gpu, quantization) {
-  if (quantization === "fp8" && gpu.fp8_tflops > 0) return gpu.fp8_tflops * 1e12;
-  if (quantization === "int4" && gpu.fp8_tflops > 0) return gpu.fp8_tflops * 2 * 1e12;
-  return gpu.fp16_tflops * 1e12;
+  const mat = gpu.ecosystem_maturity ?? 1.0;     // software-stack maturity haircut
+  if (quantization === "fp8" && gpu.fp8_tflops > 0) return gpu.fp8_tflops * 1e12 * mat;
+  if (quantization === "int4" && gpu.fp8_tflops > 0) return gpu.fp8_tflops * 2 * 1e12 * mat;
+  return gpu.fp16_tflops * 1e12 * mat;
 }
 
 // Network bandwidth per-GPU at the given degree of parallelism.

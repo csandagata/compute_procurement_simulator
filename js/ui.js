@@ -29,6 +29,7 @@ import {
 import { KV_SCHEMES, KV_SCHEME_LABELS } from "./kv.js";
 import { WORKLOAD_CLASSES, DOMAINS, workloadsByDomain, SCALING_CASES } from "./workload_classes.js";
 import { makePortfolioItem } from "./portfolio.js";
+import { HATS, DEFAULT_HAT, FRAME_LABELS, KPI_META } from "./hats.js";
 
 // Spec for every scalar input. The portfolio is rendered separately.
 const CONTROLS = [
@@ -75,7 +76,87 @@ const CONTROLS = [
 ];
 
 let currentInputs = {};
+let currentHat = DEFAULT_HAT;
 // currentInputs.portfolio is an array of portfolio items; mirrored in DOM by the portfolio editor.
+
+// =====================================================================
+// KPI / hat-pill rendering
+// =====================================================================
+
+function buildKpiRow() {
+  const row = document.getElementById("kpi-row");
+  row.innerHTML = "";
+  const order = ["kpi-peak-gpus", "kpi-peak-mw", "kpi-peak-facilities", "kpi-tco", "kpi-internal-price", "kpi-fabric"];
+  for (const id of order) {
+    const meta = KPI_META[id];
+    if (!meta) continue;
+    const tile = document.createElement("div");
+    tile.className = "kpi";
+    tile.dataset.kpiId = id;
+    tile.innerHTML = `
+      <div class="kpi-header">
+        <div class="kpi-label">${meta.label}</div>
+        <span class="info-icon" title="${meta.explainer.replace(/"/g, '&quot;')}">i</span>
+      </div>
+      <div class="kpi-value" id="${id}">—</div>
+      <div class="kpi-hats">${meta.hats.map((h) => `<span class="hat-tag" data-hat="${h}">${HATS[h].short}</span>`).join("")}</div>
+    `;
+    row.appendChild(tile);
+  }
+}
+
+function buildHatPills() {
+  const wrap = document.getElementById("hat-pills");
+  wrap.innerHTML = "";
+  for (const [id, hat] of Object.entries(HATS)) {
+    const pill = document.createElement("button");
+    pill.className = "hat-pill";
+    pill.dataset.hat = id;
+    pill.innerHTML = `<span class="hat-icon">${hat.icon}</span> ${hat.short}`;
+    pill.title = hat.label;
+    pill.addEventListener("click", () => setHat(id));
+    wrap.appendChild(pill);
+  }
+}
+
+function setHat(hatId) {
+  currentHat = hatId;
+  // Pill active state
+  for (const el of document.querySelectorAll(".hat-pill")) {
+    el.classList.toggle("active", el.dataset.hat === hatId);
+  }
+  // Frame highlighting
+  const hat = HATS[hatId];
+  for (const el of document.querySelectorAll(".frame")) {
+    const isPrimary = hat.primaryFrames.includes(el.dataset.frame);
+    el.classList.toggle("primary-for-hat", isPrimary);
+    el.classList.toggle("secondary-for-hat", hatId !== "all" && !isPrimary);
+  }
+  // KPI emphasis
+  for (const el of document.querySelectorAll(".kpi")) {
+    const isKey = hat.keyKpis.includes(el.dataset.kpiId);
+    el.classList.toggle("primary-for-hat", hatId !== "all" && isKey);
+    el.classList.toggle("secondary-for-hat", hatId !== "all" && !isKey);
+  }
+  // Hat tag highlight inside KPIs
+  for (const tag of document.querySelectorAll(".hat-tag")) {
+    tag.classList.toggle("active", tag.dataset.hat === hatId);
+  }
+  // Hat blurb
+  document.getElementById("hat-blurb").textContent = hat.blurb;
+  // Hat questions panel
+  const qs = document.getElementById("hat-questions");
+  if (hatId === "all" || !hat.questions) {
+    qs.innerHTML = "";
+    qs.classList.remove("visible");
+  } else {
+    qs.classList.add("visible");
+    qs.innerHTML = `
+      <div class="hq-title"><span class="hq-icon">${hat.icon}</span> Through the <strong>${hat.label}</strong> lens, ask:</div>
+      <ul class="hq-list">${hat.questions.map((q) => `<li>${q}</li>`).join("")}</ul>
+    `;
+  }
+}
 
 function buildControlsDom() {
   const container = document.getElementById("controls");
@@ -229,6 +310,22 @@ function readPortfolioFromDom() {
   return items;
 }
 
+function makeCheckOption(key, opt) {
+  const wrap = document.createElement("label");
+  wrap.className = "ctl-check-mini";
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.dataset.key = key;
+  cb.dataset.value = opt;
+  cb.id = `ctl-${key}-${opt}`;
+  cb.addEventListener("change", onAnyChange);
+  const span = document.createElement("span");
+  span.textContent = opt;
+  wrap.appendChild(cb);
+  wrap.appendChild(span);
+  return wrap;
+}
+
 function buildControl(c) {
   const row = document.createElement("div");
   row.className = "control-row";
@@ -239,23 +336,32 @@ function buildControl(c) {
     label.textContent = c.label;
     label.className = "ctl-label-full";
     row.appendChild(label);
+    // Group by vendor + status for scannability when there are >10 options.
+    if (c.key === "allowedGpus") {
+      const groups = {};
+      for (const opt of c.options) {
+        const gpu = GPUS[opt];
+        const key = `${gpu?.vendor || "other"} · ${gpu?.status || "?"}`;
+        (groups[key] ??= []).push(opt);
+      }
+      for (const [groupName, opts] of Object.entries(groups)) {
+        const wrap = document.createElement("div");
+        wrap.className = "checkbox-group";
+        const head = document.createElement("div");
+        head.className = "checkbox-group-head";
+        head.textContent = groupName;
+        wrap.appendChild(head);
+        for (const opt of opts) {
+          wrap.appendChild(makeCheckOption(c.key, opt));
+        }
+        row.appendChild(wrap);
+      }
+      return row;
+    }
+    // Default flat grid for other multicheckbox controls.
     const grid = document.createElement("div");
     grid.className = "checkbox-grid";
-    for (const opt of c.options) {
-      const wrap = document.createElement("label");
-      wrap.className = "ctl-check-mini";
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.dataset.key = c.key;
-      cb.dataset.value = opt;
-      cb.id = `ctl-${c.key}-${opt}`;
-      cb.addEventListener("change", onAnyChange);
-      const span = document.createElement("span");
-      span.textContent = opt;
-      wrap.appendChild(cb);
-      wrap.appendChild(span);
-      grid.appendChild(wrap);
-    }
+    for (const opt of c.options) grid.appendChild(makeCheckOption(c.key, opt));
     row.appendChild(grid);
     return row;
   }
@@ -499,8 +605,11 @@ function updateNarrative(plan) {
 }
 
 export function init() {
+  buildKpiRow();
+  buildHatPills();
   buildControlsDom();
   buildScenarioPicker();
+  setHat(DEFAULT_HAT);
   loadScenario(DEFAULT_SCENARIO);
   document.getElementById("recompute-btn").addEventListener("click", recompute);
 }

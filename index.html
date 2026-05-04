@@ -25,6 +25,11 @@
         <select id="scenario-picker"></select>
         <span class="scenario-description" id="scenario-description"></span>
       </div>
+      <div class="hat-row">
+        <span class="hat-row-label">Lens:</span>
+        <div class="hat-pills" id="hat-pills"></div>
+        <span class="hat-blurb" id="hat-blurb"></span>
+      </div>
       <div class="share-warn" id="share-warn"></div>
     </header>
 
@@ -33,36 +38,13 @@
     </aside>
 
     <main class="main">
-      <div class="kpi-row">
-        <div class="kpi">
-          <div class="kpi-label">Peak fleet</div>
-          <div class="kpi-value" id="kpi-peak-gpus">—</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label">Peak power</div>
-          <div class="kpi-value" id="kpi-peak-mw">—</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label">Facilities</div>
-          <div class="kpi-value" id="kpi-peak-facilities">—</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label">Discounted TCO</div>
-          <div class="kpi-value" id="kpi-tco">—</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label">Internal $/Mtok (final yr)</div>
-          <div class="kpi-value" id="kpi-internal-price">—</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-label">Coherent fabric needed</div>
-          <div class="kpi-value" id="kpi-fabric">—</div>
-        </div>
-      </div>
+      <div class="kpi-row" id="kpi-row"></div>
+
+      <div class="hat-questions" id="hat-questions"></div>
 
       <div class="narrative" id="narrative"></div>
 
-      <section class="frame">
+      <section class="frame" id="frame-portfolio" data-frame="frame-portfolio">
         <h2 class="frame-title">Workload portfolio</h2>
         <p class="frame-blurb">What you're running, broken down by domain and bottleneck. The latent-scaling-case fan shows the band of fleet outcomes if non-LLM scaling laws turn out compute-bound vs data-bound.</p>
         <div class="charts-grid">
@@ -74,7 +56,7 @@
         </div>
       </section>
 
-      <section class="frame">
+      <section class="frame" id="frame-chip" data-frame="frame-chip">
         <h2 class="frame-title">Chip mix &amp; spend</h2>
         <p class="frame-blurb">How many GPUs of which kind, what they cost over the horizon, and whether building beats buying.</p>
         <div class="charts-grid">
@@ -84,7 +66,7 @@
         </div>
       </section>
 
-      <section class="frame">
+      <section class="frame" id="frame-latency" data-frame="frame-latency">
         <h2 class="frame-title">Latency &amp; data center needs</h2>
         <p class="frame-blurb">Power footprint, facility count by latency tier, and the latency-cost Pareto frontier per Erdil/Epoch.</p>
         <div class="charts-grid">
@@ -95,7 +77,7 @@
         </div>
       </section>
 
-      <section class="frame">
+      <section class="frame" id="frame-longterm" data-frame="frame-longterm">
         <h2 class="frame-title">Long-term &amp; surge implications</h2>
         <p class="frame-blurb">Demand-uncertainty fan vs provisioned capacity, and TCO sensitivity to each input lever.</p>
         <div class="charts-grid">

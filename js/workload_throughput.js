@@ -16,18 +16,19 @@ const HOURS_PER_YEAR = 24 * 365;
 
 function flopsForWorkload(gpu, workload, mfu) {
   const bound = workload.bound_default;
+  const matMfu = mfu * (gpu.ecosystem_maturity ?? 1.0);   // ecosystem-maturity haircut
   if (bound === "fp64" && workload.fp64_required) {
-    return (gpu.fp64_tflops || 0) * 1e12 * mfu;
+    return (gpu.fp64_tflops || 0) * 1e12 * matMfu;
   }
   // For compute-bound non-FP64 workloads, pick the highest precision the
   // workload can use that the GPU supports.
   const accepts = workload.precision_options || ["fp16"];
-  if (accepts.includes("fp8") && (gpu.fp8_tflops || 0) > 0) return gpu.fp8_tflops * 1e12 * mfu;
-  if (accepts.includes("int4") && (gpu.fp8_tflops || 0) > 0) return gpu.fp8_tflops * 2 * 1e12 * mfu;
-  if (accepts.includes("fp16") || accepts.includes("bf16")) return gpu.fp16_tflops * 1e12 * mfu;
-  if (accepts.includes("fp32")) return (gpu.fp32_tflops || gpu.fp16_tflops / 4) * 1e12 * mfu;
-  if (accepts.includes("fp64")) return (gpu.fp64_tflops || 0) * 1e12 * mfu;
-  return gpu.fp16_tflops * 1e12 * mfu;
+  if (accepts.includes("fp8") && (gpu.fp8_tflops || 0) > 0) return gpu.fp8_tflops * 1e12 * matMfu;
+  if (accepts.includes("int4") && (gpu.fp8_tflops || 0) > 0) return gpu.fp8_tflops * 2 * 1e12 * matMfu;
+  if (accepts.includes("fp16") || accepts.includes("bf16")) return gpu.fp16_tflops * 1e12 * matMfu;
+  if (accepts.includes("fp32")) return (gpu.fp32_tflops || gpu.fp16_tflops / 4) * 1e12 * matMfu;
+  if (accepts.includes("fp64")) return (gpu.fp64_tflops || 0) * 1e12 * matMfu;
+  return gpu.fp16_tflops * 1e12 * matMfu;
 }
 
 // Filter SKUs that can run this workload (vendor / FP64 / ecosystem constraints).
