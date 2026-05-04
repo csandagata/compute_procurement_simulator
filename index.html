@@ -4,101 +4,208 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Compute Procurement Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=DM+Mono:wght@300;400;500&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
-  <div class="app">
-    <header class="app-header">
-      <div class="top-row">
-        <div>
-          <h1>Compute Procurement Simulator</h1>
-          <div class="subtitle">
-            An idealized planning dashboard for an enterprise's internal GPU buildout
-            <span class="compute-time" id="compute-time"></span>
-          </div>
-        </div>
-        <button class="recompute-btn" id="recompute-btn">Recompute</button>
-      </div>
-      <div class="scenario-row">
-        <label for="scenario-picker" style="color: var(--text-dim); font-size: 12px;">Scenario:</label>
-        <select id="scenario-picker"></select>
-        <span class="scenario-description" id="scenario-description"></span>
-      </div>
-      <div class="hat-row">
-        <span class="hat-row-label">Lens:</span>
-        <div class="hat-pills" id="hat-pills"></div>
-        <span class="hat-blurb" id="hat-blurb"></span>
-      </div>
-      <div class="share-warn" id="share-warn"></div>
-    </header>
 
-    <aside class="sidebar">
-      <div id="controls"></div>
-    </aside>
-
-    <main class="main">
-      <div class="kpi-row" id="kpi-row"></div>
-
-      <div class="hat-questions" id="hat-questions"></div>
-
-      <div class="narrative" id="narrative"></div>
-
-      <section class="frame" id="frame-portfolio" data-frame="frame-portfolio">
-        <h2 class="frame-title">Workload portfolio</h2>
-        <p class="frame-blurb">What you're running, broken down by domain and bottleneck. The latent-scaling-case fan shows the band of fleet outcomes if non-LLM scaling laws turn out compute-bound vs data-bound.</p>
-        <div class="charts-grid">
-          <div class="chart-card" id="chart-domain"></div>
-          <div class="chart-card" id="chart-scaling-fan"></div>
-          <div class="chart-card full" id="chart-bound-heatmap"></div>
-          <div class="chart-card" id="chart-fp64-split"></div>
-          <div class="chart-card" id="chart-sku-mix"></div>
-        </div>
-      </section>
-
-      <section class="frame" id="frame-chip" data-frame="frame-chip">
-        <h2 class="frame-title">Chip mix &amp; spend</h2>
-        <p class="frame-blurb">How many GPUs of which kind, what they cost over the horizon, and whether building beats buying.</p>
-        <div class="charts-grid">
-          <div class="chart-card" id="chart-fleet"></div>
-          <div class="chart-card full" id="chart-tco"></div>
-          <div class="chart-card" id="chart-buybuild"></div>
-        </div>
-      </section>
-
-      <section class="frame" id="frame-latency" data-frame="frame-latency">
-        <h2 class="frame-title">Latency &amp; data center needs</h2>
-        <p class="frame-blurb">Power footprint, facility count by latency tier, and the latency-cost Pareto frontier per Erdil/Epoch.</p>
-        <div class="charts-grid">
-          <div class="chart-card" id="chart-facilities"></div>
-          <div class="chart-card" id="chart-power"></div>
-          <div class="chart-card" id="chart-scaleup"></div>
-          <div class="chart-card" id="chart-latency"></div>
-        </div>
-      </section>
-
-      <section class="frame" id="frame-longterm" data-frame="frame-longterm">
-        <h2 class="frame-title">Long-term &amp; surge implications</h2>
-        <p class="frame-blurb">Demand-uncertainty fan vs provisioned capacity, and TCO sensitivity to each input lever.</p>
-        <div class="charts-grid">
-          <div class="chart-card" id="chart-fan"></div>
-          <div class="chart-card" id="chart-tornado"></div>
-        </div>
-      </section>
-
-      <div class="refs">
-        <strong>Model basis &amp; references.</strong>
-        Throughput math is a simplified version of the inference-economics framework
-        from <a href="https://github.com/ege-erdil/inference-economics" target="_blank" rel="noopener">Erdil &amp; Epoch (2025)</a>
-        — per-token decode time = max(memory-bw, compute, network) plus collective latency, with batch size traded against activation/network cost.
-        Price-decline curves follow <a href="https://epoch.ai/data-insights/llm-inference-price-trends" target="_blank" rel="noopener">Epoch AI's LLM inference price trends</a> (median ~50× per year, post-2024 ~200×).
-        TCO categories follow the <a href="https://inferencex.semianalysis.com/inference" target="_blank" rel="noopener">SemiAnalysis InferenceMAX</a> decomposition (chips, networking BoM, datacenter, power).
-        See <a href="https://epoch.ai/blog/inference-economics-of-language-models" target="_blank" rel="noopener">Epoch's inference-economics blog post</a> for the latency-cost Pareto-frontier methodology this dashboard echoes.
-        All numbers are illustrative; tune the parameters to your own situation.
-      </div>
-    </main>
+<!-- ═══════ PERSONA GATEWAY ═══════ -->
+<div id="gateway">
+  <div class="gateway-statusbar">
+    <span class="statusbar-item amber">● SYSTEM READY</span>
+    <span class="statusbar-sep">|</span>
+    <span class="statusbar-item">COMPUTE PROCUREMENT SIMULATOR</span>
+    <span class="statusbar-sep">|</span>
+    <span class="statusbar-item">REV 3.1.0</span>
+    <span class="statusbar-sep">|</span>
+    <span class="statusbar-item" id="gw-timestamp"></span>
   </div>
+  <div class="gateway-serial">DOC-SIM-2026 // ACCESS LEVEL: PLANNING // ALL NUMBERS ILLUSTRATIVE</div>
+  <h1 class="gateway-title">COMPUTE<br><em>PROCUREMENT</em><br>SIMULATOR</h1>
+  <p class="gateway-sub">An idealized GPU planning dashboard for enterprise buildouts. Select your planning role to focus on the metrics that drive your decisions.</p>
+  <p class="gateway-label">SELECT ROLE / LENS</p>
+  <div class="persona-grid" id="gateway-personas"></div>
+  <button class="gateway-enter" id="gateway-enter">ENTER DASHBOARD ↗</button>
+  <button class="gateway-skip" id="gateway-skip">skip — show all views</button>
+</div>
 
-  <script type="module" src="js/main.js"></script>
+<!-- ═══════ APP ═══════ -->
+<div class="app" id="app" style="display:none">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-wordmark">
+      <div class="wordmark-icon">GP</div>
+      <span class="wordmark-text">GPU Planner</span>
+      <span class="wordmark-beta">BETA</span>
+    </div>
+    <div class="header-divider"></div>
+    <div class="hat-pills-header" id="hat-pills-header"></div>
+    <div class="header-right">
+      <span class="header-compute-time" id="compute-time"></span>
+      <button class="btn-recompute" id="recompute-btn">Recompute</button>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-tabs">
+      <button class="sidebar-tab active" data-tab="scenarios">Scenarios</button>
+      <button class="sidebar-tab" data-tab="workloads">Workloads</button>
+      <button class="sidebar-tab" data-tab="params">Parameters</button>
+    </div>
+    <div class="sidebar-pane active" id="pane-scenarios">
+      <div id="scenario-cards"></div>
+      <div class="share-warn" id="share-warn"></div>
+    </div>
+    <div class="sidebar-pane" id="pane-workloads">
+      <div class="portfolio-hint">Compose your workload mix. <em>Scaling case</em> sets how demand grows: <strong>low</strong> = data-bound / saturating, <strong>high</strong> = compute-bound.</div>
+      <div id="portfolio-editor"></div>
+    </div>
+    <div class="sidebar-pane" id="pane-params">
+      <div id="params-controls"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- HAT INSIGHT BANNER -->
+    <div class="hat-insight" id="hat-insight">
+      <div class="hat-insight-header">
+        <span class="hat-insight-icon" id="hi-icon"></span>
+        <span class="hat-insight-who">Through the <strong id="hi-who"></strong> lens</span>
+      </div>
+      <p class="hat-insight-blurb" id="hi-blurb"></p>
+      <ul class="hat-questions-list" id="hi-questions"></ul>
+    </div>
+
+    <!-- KPI ROW -->
+    <div class="kpi-row" id="kpi-row"></div>
+
+    <!-- NARRATIVE -->
+    <div class="narrative-section" id="narrative-section">
+      <div class="narrative-header" id="narrative-toggle">
+        <div class="narrative-title">
+          <span class="narrative-dot"></span>
+          Plan summary
+        </div>
+        <span class="narrative-toggle">▾</span>
+      </div>
+      <div class="narrative-body" id="narrative"></div>
+    </div>
+
+    <!-- FRAME: WORKLOAD PORTFOLIO -->
+    <div class="chart-frame" id="frame-portfolio" data-frame="frame-portfolio">
+      <div class="chart-frame-header">
+        <div class="chart-frame-title-row">
+          <div class="frame-accent-bar"></div>
+          <h2 class="chart-frame-title">Workload Portfolio</h2>
+          <span class="chart-frame-serial">SIM-01 // PORTFOLIO</span>
+        </div>
+        <p class="chart-frame-blurb">GPU-years consumed per domain, compute bottlenecks, and fleet composition. The scaling-case fan shows how uncertain scaling laws can swing your fleet requirement.</p>
+        <button class="insight-pill" data-insight="portfolio">
+          <span class="insight-pill-icon">◈</span> ANALYSIS NOTES
+        </button>
+        <div class="insight-box" id="insight-portfolio">
+          The domain stack tells you <strong>where your GPU-years go</strong>. Look for concentration risk — if LLM dominates, your fleet is memory-bandwidth-limited and benefits from B200/H200. The bottleneck heatmap reveals whether you need more HBM, FP4 compute, NVLink bandwidth, or FP64 cores. The scaling-case fan shows how much your fleet could grow if AI-for-science turns out to be compute-bound.
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card" id="chart-domain" data-serial="SIM-01A"></div>
+        <div class="chart-card" id="chart-scaling-fan" data-serial="SIM-01B"></div>
+        <div class="chart-card full" id="chart-bound-heatmap" data-serial="SIM-01C"></div>
+        <div class="chart-card" id="chart-fp64-split" data-serial="SIM-01D"></div>
+        <div class="chart-card" id="chart-sku-mix" data-serial="SIM-01E"></div>
+      </div>
+    </div>
+
+    <!-- FRAME: CHIP MIX & SPEND -->
+    <div class="chart-frame" id="frame-chip" data-frame="frame-chip">
+      <div class="chart-frame-header">
+        <div class="chart-frame-title-row">
+          <div class="frame-accent-bar"></div>
+          <h2 class="chart-frame-title">Chip Mix &amp; Spend</h2>
+          <span class="chart-frame-serial">SIM-02 // FINANCIAL</span>
+        </div>
+        <p class="chart-frame-blurb">Fleet composition over the horizon, cumulative TCO breakdown, and the crossover point where building beats renting.</p>
+        <button class="insight-pill" data-insight="chip">
+          <span class="insight-pill-icon">◈</span> ANALYSIS NOTES
+        </button>
+        <div class="insight-box" id="insight-chip">
+          The <strong>build-vs-buy crossover</strong> is the most important chart here. If your internal cost/Mtok never crosses below the declining external rental curve, you may be better off staying on cloud. The TCO stack shows whether CapEx (GPUs, networking, facility) or OpEx (power, rental) dominates — this drives your depreciation and refresh strategy.
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card" id="chart-fleet" data-serial="SIM-02A"></div>
+        <div class="chart-card full" id="chart-tco" data-serial="SIM-02B"></div>
+        <div class="chart-card" id="chart-buybuild" data-serial="SIM-02C"></div>
+      </div>
+    </div>
+
+    <!-- FRAME: LATENCY & DC -->
+    <div class="chart-frame" id="frame-latency" data-frame="frame-latency">
+      <div class="chart-frame-header">
+        <div class="chart-frame-title-row">
+          <div class="frame-accent-bar"></div>
+          <h2 class="chart-frame-title">Latency &amp; Data Center</h2>
+          <span class="chart-frame-serial">SIM-03 // INFRASTRUCTURE</span>
+        </div>
+        <p class="chart-frame-blurb">Power footprint, facility count by latency tier, scale-up fabric sizing, and the latency-cost Pareto frontier per Erdil/Epoch.</p>
+        <button class="insight-pill" data-insight="latency">
+          <span class="insight-pill-icon">◈</span> ANALYSIS NOTES
+        </button>
+        <div class="insight-box" id="insight-latency">
+          The <strong>Pareto frontier</strong> shows you the cheapest cost-per-token achievable at each latency target. Moving left (faster) is expensive — interactive serving at 30ms/tok can cost 3–10× more than batch at 500ms/tok. If the frontier model requires more coherent-fabric GPUs than your chosen SKU provides, you'll need pipeline-parallel splits or a different chip.
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card" id="chart-facilities" data-serial="SIM-03A"></div>
+        <div class="chart-card" id="chart-power" data-serial="SIM-03B"></div>
+        <div class="chart-card" id="chart-scaleup" data-serial="SIM-03C"></div>
+        <div class="chart-card" id="chart-latency" data-serial="SIM-03D"></div>
+      </div>
+    </div>
+
+    <!-- FRAME: LONG-TERM -->
+    <div class="chart-frame" id="frame-longterm" data-frame="frame-longterm">
+      <div class="chart-frame-header">
+        <div class="chart-frame-title-row">
+          <div class="frame-accent-bar"></div>
+          <h2 class="chart-frame-title">Long-Term &amp; Surge</h2>
+          <span class="chart-frame-serial">SIM-04 // UNCERTAINTY</span>
+        </div>
+        <p class="chart-frame-blurb">Demand uncertainty fan vs provisioned capacity, and TCO sensitivity to each input lever.</p>
+        <button class="insight-pill" data-insight="longterm">
+          <span class="insight-pill-icon">◈</span> ANALYSIS NOTES
+        </button>
+        <div class="insight-box" id="insight-longterm">
+          The <strong>tornado chart</strong> tells you which assumptions matter most. Widen the top bars to pressure-test your plan. The <strong>demand fan</strong> shows how much cushion your provisioned capacity provides — if the P90 demand line exceeds capacity in years 3–5, you need either more headroom or a cloud-overflow strategy. Demand growth rate and algorithmic efficiency gains are usually the widest bars.
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card" id="chart-fan" data-serial="SIM-04A"></div>
+        <div class="chart-card" id="chart-tornado" data-serial="SIM-04B"></div>
+      </div>
+    </div>
+
+    <!-- REFS -->
+    <div class="refs-section">
+      <strong>Model basis &amp; references.</strong>
+      Throughput math is a simplified version of the inference-economics framework
+      from <a href="https://github.com/ege-erdil/inference-economics" target="_blank" rel="noopener">Erdil &amp; Epoch (2025)</a>.
+      Price-decline curves follow <a href="https://epoch.ai/data-insights/llm-inference-price-trends" target="_blank" rel="noopener">Epoch AI's LLM inference price trends</a>.
+      TCO categories follow <a href="https://inferencex.semianalysis.com/inference" target="_blank" rel="noopener">SemiAnalysis InferenceMAX</a>.
+      Latency-cost Pareto methodology: <a href="https://epoch.ai/blog/inference-economics-of-language-models" target="_blank" rel="noopener">Epoch inference-economics</a>.
+      All numbers are illustrative; tune parameters to your situation.
+    </div>
+
+  </main>
+</div>
+
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
